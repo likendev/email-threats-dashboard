@@ -60,7 +60,7 @@ export default {
       });
 
       return sortedThreat.sort((a, b) => {
-        return a.threatsCount - b.threatsCount;
+        return b.threatsCount - a.threatsCount;
       }).slice(0, this.rank);
     },
     percentage(partialValue, totalValue) {
