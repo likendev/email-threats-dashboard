@@ -1,11 +1,25 @@
 <template>
   <div class="dashboard-container">
-    <div v-for="data in processedData" :key="data.severity">
-      <threats-info
-        :threats-category="data.type"
-        :threats-data="data.data"
-        :severity="data.severity"
-      />
+    <h3>Customer:</h3>
+    <select v-model="selectedCustomer" @change="handleSelectionChange">
+      <option disabled value="0">please select</option>
+      <option
+        v-for="customer in customersInfo"
+        :key="customer.id"
+        :value="customer.id"
+      >
+        {{ customer.name }}
+      </option>
+    </select>
+
+    <div class="threats-info-container">
+      <div v-for="data in processedData" :key="data.severity">
+        <threats-info
+          :threats-category="data.type"
+          :threats-data="data.data"
+          :severity="data.severity"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -17,22 +31,48 @@ import ThreatsInfo from "@/components/ThreatsInfo";
 export default {
   name: "EmailDashboard",
   components: { ThreatsInfo },
+  data() {
+    return {
+      selectedCustomer: 0,
+      customerMessages: [],
+    };
+  },
   computed: {
     processedData() {
-      return this.processData(this.$store.getters.getMessages);
+      return this.customerMessages;
+    },
+    customersInfo() {
+      return this.$store.getters.getCustomersInfo;
     },
   },
   async created() {
     await axios
       .get(
-        "https://abnormalsecurity-public.s3.amazonaws.com/fe_dashboard/adams_keeling/messages.json"
+        "https://abnormalsecurity-public.s3.amazonaws.com/fe_dashboard/customers.json"
       )
       .then((response) => {
-        this.$store.dispatch("updateMessagesData", response.data);
+        this.$store.dispatch("setCustomers", response.data);
       });
   },
   methods: {
-    processData(messageData) {
+    handleSelectionChange() {
+      if(this.selectedCustomer === 0) {
+        return;
+      } else {
+        this.$store.dispatch("setSelectedCustomers", this.selectedCustomer);
+        if (this.$store.getters.getMessages(this.selectedCustomer)) {
+          this.customerMessages = this.$store.getters.getMessages(
+            this.selectedCustomer
+          );
+        } else {
+          let url = `https://abnormalsecurity-public.s3.amazonaws.com/fe_dashboard/${this.selectedCustomer}/messages.json`;
+          axios.get(url).then((response) => {
+            this.processMessage(response.data);
+          });
+        }
+      }
+    },
+    processMessage(messageData) {
       if (Array.isArray(messageData)) {
         let spamMessage = messageData.filter((message) => {
           return message.attackType === "SPAM";
@@ -54,17 +94,23 @@ export default {
           data: spamMessage,
         });
 
-        return messageArr.sort((a, b) => {
-          a.severity - b.severity;
-        });
+        messageArr = this.sortArr(messageArr)
+
+        this.$store.dispatch("updateMessagesData", messageArr);
+        this.customerMessages = messageArr;
       }
     },
+    sortArr(data) {
+      return data.sort((a, b) => {
+        a.severity - b.severity;
+      });
+    }
   },
 };
 </script>
 
 <style type="scss" scoped>
-.dashboard-container {
+.threats-info-container {
   display: flex;
   justify-content: space-around;
   align-items: stretch;
