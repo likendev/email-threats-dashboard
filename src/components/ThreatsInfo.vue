@@ -42,12 +42,10 @@ export default {
 
 <style scoped type="scss">
 .threats-info-card {
-  border: solid;
-  border-color: black;
+  border: solid black;
   border-radius: 5px;
   text-align: center;
   padding: 30px;
-  width: 100%;
 }
 .danger {
   color: red;

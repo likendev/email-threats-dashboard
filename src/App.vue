@@ -16,5 +16,7 @@ export default {
 <style>
 #app {
   font-family: Arial;
+  width: 80%;
+  margin: auto
 }
 </style>

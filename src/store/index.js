@@ -19,8 +19,14 @@ export default createStore({
         state.selectedCustomers = data;
       }
     },
+    initializeMessageData(state, { id, data }) {
+      state.messages[id] = data;
+    },
   },
   actions: {
+    initializeMessageData(context, { id, data }) {
+      context.commit("initializeMessageData", { id: id, data: data });
+    },
     updateMessagesData(context, data) {
       context.commit("setMessagesData", data);
     },
@@ -37,6 +43,9 @@ export default createStore({
     },
     getCustomersInfo(state) {
       return state.customers;
+    },
+    getAllMessages(state) {
+      return state.messages;
     },
   },
 });

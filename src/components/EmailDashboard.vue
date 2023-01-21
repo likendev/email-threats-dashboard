@@ -1,25 +1,47 @@
 <template>
   <div class="dashboard-container">
-    <h3>Customer:</h3>
-    <select v-model="selectedCustomer" @change="handleSelectionChange">
-      <option disabled value="0">please select</option>
-      <option
-        v-for="customer in customersInfo"
-        :key="customer.id"
-        :value="customer.id"
-      >
-        {{ customer.name }}
-      </option>
-    </select>
+    <div class="customer-info-container">
+      <h3>Customer:</h3>
+      <select v-model="selectedCustomer" @change="handleSelectionChange">
+        <option disabled value="0">please select</option>
+        <option
+          v-for="customer in customersInfo"
+          :key="customer.id"
+          :value="customer.id"
+        >
+          {{ customer.name }}
+        </option>
+      </select>
+    </div>
 
-    <div class="threats-info-container">
-      <div v-for="data in processedData" :key="data.severity">
+    <div v-if="processedData.length === 0">
+      <div class="threats-info-container">
         <threats-info
-          :threats-category="data.type"
-          :threats-data="data.data"
-          :severity="data.severity"
+          :threats-category="`HIGH_SEVERE`"
+          :threats-data="[]"
+          :severity="1"
+        />
+        <threats-info
+          :threats-category="`SPAM`"
+          :threats-data="[]"
+          :severity="2"
         />
       </div>
+    </div>
+    <div v-else>
+      <div class="threats-info-container">
+        <div v-for="data in processedData" :key="data.severity">
+          <threats-info
+            :threats-category="data.type"
+            :threats-data="data.data"
+            :severity="data.severity"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <top-threat-table :data="allMessages" />
     </div>
   </div>
 </template>
@@ -27,14 +49,16 @@
 <script>
 import axios from "axios";
 import ThreatsInfo from "@/components/ThreatsInfo";
+import TopThreatTable from "@/components/TopThreatTable";
 
 export default {
   name: "EmailDashboard",
-  components: { ThreatsInfo },
+  components: { TopThreatTable, ThreatsInfo },
   data() {
     return {
       selectedCustomer: 0,
       customerMessages: [],
+      allMessages: [],
     };
   },
   computed: {
@@ -53,10 +77,28 @@ export default {
       .then((response) => {
         this.$store.dispatch("setCustomers", response.data);
       });
+
+    let customers = this.$store.getters.getCustomersInfo;
+    customers.forEach((customer) => {
+      let url = `https://abnormalsecurity-public.s3.amazonaws.com/fe_dashboard/${customer.id}/messages.json`;
+      axios
+        .get(url)
+        .then((response) => {
+          this.allMessages = this.allMessages.concat(response.data);
+          let messageArr = this.processMessage(response.data);
+          this.$store.dispatch("initializeMessageData", {
+            id: customer.id,
+            data: messageArr,
+          });
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+    });
   },
   methods: {
     handleSelectionChange() {
-      if(this.selectedCustomer === 0) {
+      if (this.selectedCustomer === 0) {
         return;
       } else {
         this.$store.dispatch("setSelectedCustomers", this.selectedCustomer);
@@ -67,7 +109,9 @@ export default {
         } else {
           let url = `https://abnormalsecurity-public.s3.amazonaws.com/fe_dashboard/${this.selectedCustomer}/messages.json`;
           axios.get(url).then((response) => {
-            this.processMessage(response.data);
+            let messageArr = this.processMessage(response.data);
+            this.$store.dispatch("updateMessagesData", messageArr);
+            this.customerMessages = messageArr;
           });
         }
       }
@@ -94,26 +138,27 @@ export default {
           data: spamMessage,
         });
 
-        messageArr = this.sortArr(messageArr)
+        messageArr = this.sortArr(messageArr);
 
-        this.$store.dispatch("updateMessagesData", messageArr);
-        this.customerMessages = messageArr;
+        return messageArr;
       }
     },
     sortArr(data) {
       return data.sort((a, b) => {
         a.severity - b.severity;
       });
-    }
+    },
   },
 };
 </script>
 
 <style type="scss" scoped>
+.customer-info-container {
+  margin-bottom: 30px;
+}
 .threats-info-container {
   display: flex;
-  justify-content: space-around;
-  align-items: stretch;
-  width: 100%;
+  justify-content: space-between;
+  margin-bottom: 30px;
 }
 </style>
